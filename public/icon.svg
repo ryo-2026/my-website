@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="#0d0d1a"/>
+  <!-- Lightning bolt path (⚡) -->
+  <polygon
+    points="300,60 180,280 248,280 212,452 332,232 264,232 300,60"
+    fill="#e0ff4f"
+  />
+</svg>

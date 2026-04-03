@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
+import { signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "firebase/auth";
 import {
   doc, getDoc, setDoc, collection,
   query, where, onSnapshot, getDocs,
@@ -144,10 +144,9 @@ function LoginScreen() {
     setLoading(true);
     setError("");
     try {
-      await signInWithPopup(auth, provider);
+      await signInWithRedirect(auth, provider);
     } catch {
       setError("ログインに失敗しました。もう一度お試しください。");
-    } finally {
       setLoading(false);
     }
   };
@@ -670,6 +669,7 @@ export default function App() {
   const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
+    getRedirectResult(auth).catch(() => {});
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const userRef = doc(db, "users", firebaseUser.uid);

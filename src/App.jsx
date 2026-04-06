@@ -191,6 +191,22 @@ function LoginScreen() {
   );
 }
 
+// ============ PROFILE HELPERS ============
+const GRADES = ["小1","小2","小3","小4","小5","小6","中1","中2","中3"];
+const SPORTS = ["サッカー","テニス","バスケ"];
+const GENDERS = ["男","女","その他"];
+
+function profileSportStr(p) {
+  return [p?.sport, p?.isPersonal ? "パーソナル" : ""].filter(Boolean).join(" · ") || "—";
+}
+function profileNameStr(p) {
+  return [p?.lastNameKanji, p?.firstNameKanji].filter(Boolean).join(" ") || "—";
+}
+function profileKanaStr(p) {
+  return [p?.lastNameKana, p?.firstNameKana].filter(Boolean).join(" ") || "—";
+}
+// （比較テーブル・申請フォームは不使用）
+
 // ============ PROFILE EDIT TAB ============
 function ProfileEditTab({ userProfile, onProfileUpdate }) {
   const [lastNameKanji, setLastNameKanji] = useState(userProfile.lastNameKanji || "");
@@ -203,33 +219,18 @@ function ProfileEditTab({ userProfile, onProfileUpdate }) {
   const [isPersonal, setIsPersonal] = useState(userProfile.isPersonal || false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [requesting, setRequesting] = useState(false);
 
-  const GRADES = ["小1","小2","小3","小4","小5","小6","中1","中2","中3"];
-  const SPORTS = ["サッカー","テニス","バスケ"];
-  const GENDERS = ["男","女","その他"];
-
-  const handleSave = async () => {
-    setSaving(true);
-    setSaved(false);
-    const updates = { lastNameKanji, firstNameKanji, lastNameKana, firstNameKana, gender, grade, sport, isPersonal };
-    await setDoc(doc(db, "users", userProfile.uid), updates, { merge: true });
-    onProfileUpdate({ ...userProfile, ...updates });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
-  };
+  const isLocked = !!userProfile.profileLocked;
+  const hasRequested = !!userProfile.profileEditRequest;
 
   const inputStyle = {
     width: "100%", background: BG_CARD, border: "1px solid " + BORDER,
     borderRadius: 10, padding: "12px 14px", color: "#fff", fontSize: 14,
     outline: "none", fontFamily: "inherit", boxSizing: "border-box",
   };
-  const labelStyle = {
-    fontSize: 12, color: "#888", fontWeight: 700, letterSpacing: "0.08em",
-    textTransform: "uppercase", display: "block", marginBottom: 10,
-  };
+  const labelStyle = { fontSize: 12, color: "#888", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", display: "block", marginBottom: 10 };
   const sectionStyle = { marginBottom: 24 };
-
   const optionBtn = (active) => ({
     padding: "10px 4px", borderRadius: 10,
     border: `2px solid ${active ? ACCENT : BORDER}`,
@@ -238,6 +239,89 @@ function ProfileEditTab({ userProfile, onProfileUpdate }) {
     cursor: "pointer", fontSize: 13, fontWeight: 700,
   });
 
+  const handleSave = async () => {
+    setSaving(true);
+    const updates = {
+      lastNameKanji, firstNameKanji, lastNameKana, firstNameKana,
+      gender, grade, sport, isPersonal,
+      profileLocked: true, profileEditRequest: false,
+    };
+    await setDoc(doc(db, "users", userProfile.uid), updates, { merge: true });
+    onProfileUpdate({ ...userProfile, ...updates });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  const handleRequest = async () => {
+    setRequesting(true);
+    await setDoc(doc(db, "users", userProfile.uid), { profileEditRequest: true }, { merge: true });
+    onProfileUpdate({ ...userProfile, profileEditRequest: true });
+    setRequesting(false);
+  };
+
+  // ---- ロック中の表示 ----
+  if (isLocked) {
+    const rows = [
+      { label: "お名前",   value: profileNameStr(userProfile) },
+      { label: "フリガナ", value: profileKanaStr(userProfile) },
+      { label: "性別",     value: userProfile.gender || "—" },
+      { label: "学年",     value: userProfile.grade  || "—" },
+      { label: "競技種目", value: profileSportStr(userProfile) },
+    ];
+    return (
+      <div style={{ padding: "24px 20px 60px" }}>
+        <div style={{ marginBottom: 24, paddingBottom: 20, borderBottom: "1px solid " + BORDER }}>
+          <div style={{ fontSize: 11, color: ACCENT, fontWeight: 700, letterSpacing: "0.12em", marginBottom: 4 }}>PROFILE</div>
+          <div style={{ fontSize: 22, fontWeight: 900 }}>プロフィール</div>
+        </div>
+
+        <div style={{ background: BG_CARD, borderRadius: 16, border: "1px solid " + BORDER, overflow: "hidden", marginBottom: 20 }}>
+          {rows.map((r, i, arr) => (
+            <div key={r.label} style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              padding: "14px 16px",
+              borderBottom: i < arr.length - 1 ? "1px solid " + BORDER : "none",
+            }}>
+              <span style={{ fontSize: 12, color: "#888", fontWeight: 700 }}>{r.label}</span>
+              <span style={{ fontSize: 14, color: "#fff", fontWeight: 600 }}>{r.value}</span>
+            </div>
+          ))}
+        </div>
+
+        {hasRequested ? (
+          <div style={{
+            background: "#60a5fa0f", border: "1px solid #60a5fa33",
+            borderRadius: 14, padding: 20, textAlign: "center",
+          }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>📨</div>
+            <div style={{ fontSize: 14, color: "#60a5fa", fontWeight: 700, marginBottom: 6 }}>変更申請中</div>
+            <div style={{ fontSize: 12, color: "#888" }}>コーチの承認をお待ちください</div>
+          </div>
+        ) : (
+          <>
+            <div style={{
+              background: "#1a1a2e", border: "1px solid #2a2a3e",
+              borderRadius: 12, padding: "12px 16px", marginBottom: 16,
+              fontSize: 12, color: "#888", lineHeight: 1.7,
+            }}>
+              🔒 プロフィールはロックされています。<br />変更が必要な場合はコーチに申請してください。
+            </div>
+            <button onClick={handleRequest} disabled={requesting} style={{
+              width: "100%", padding: 18, borderRadius: 16,
+              background: "#60a5fa22", color: "#60a5fa",
+              fontSize: 15, fontWeight: 700, cursor: "pointer",
+              border: "1px solid #60a5fa44",
+            }}>
+              {requesting ? "申請中..." : "✏️ 変更を申請する"}
+            </button>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // ---- 編集フォーム（初回 or アンロック後） ----
   return (
     <div style={{ padding: "24px 20px 60px" }}>
       <div style={{ marginBottom: 28, paddingBottom: 20, borderBottom: "1px solid " + BORDER }}>
@@ -248,47 +332,33 @@ function ProfileEditTab({ userProfile, onProfileUpdate }) {
       <div style={sectionStyle}>
         <label style={labelStyle}>👤 お名前</label>
         <div style={{ display: "flex", gap: 8 }}>
-          <input value={lastNameKanji} onChange={e => setLastNameKanji(e.target.value)}
-            placeholder="姓（田中）" style={{ ...inputStyle, flex: 1 }} />
-          <input value={firstNameKanji} onChange={e => setFirstNameKanji(e.target.value)}
-            placeholder="名（翼）" style={{ ...inputStyle, flex: 1 }} />
+          <input value={lastNameKanji} onChange={e => setLastNameKanji(e.target.value)} placeholder="姓（田中）" style={{ ...inputStyle, flex: 1 }} />
+          <input value={firstNameKanji} onChange={e => setFirstNameKanji(e.target.value)} placeholder="名（翼）" style={{ ...inputStyle, flex: 1 }} />
         </div>
       </div>
-
       <div style={sectionStyle}>
         <label style={labelStyle}>👤 フリガナ</label>
         <div style={{ display: "flex", gap: 8 }}>
-          <input value={lastNameKana} onChange={e => setLastNameKana(e.target.value)}
-            placeholder="セイ（タナカ）" style={{ ...inputStyle, flex: 1 }} />
-          <input value={firstNameKana} onChange={e => setFirstNameKana(e.target.value)}
-            placeholder="メイ（ツバサ）" style={{ ...inputStyle, flex: 1 }} />
+          <input value={lastNameKana} onChange={e => setLastNameKana(e.target.value)} placeholder="セイ（タナカ）" style={{ ...inputStyle, flex: 1 }} />
+          <input value={firstNameKana} onChange={e => setFirstNameKana(e.target.value)} placeholder="メイ（ツバサ）" style={{ ...inputStyle, flex: 1 }} />
         </div>
       </div>
-
       <div style={sectionStyle}>
         <label style={labelStyle}>⚥ 性別</label>
         <div style={{ display: "flex", gap: 8 }}>
-          {GENDERS.map(g => (
-            <button key={g} onClick={() => setGender(g)} style={{ flex: 1, ...optionBtn(gender === g) }}>{g}</button>
-          ))}
+          {GENDERS.map(g => <button key={g} onClick={() => setGender(g)} style={{ flex: 1, ...optionBtn(gender === g) }}>{g}</button>)}
         </div>
       </div>
-
       <div style={sectionStyle}>
         <label style={labelStyle}>🎓 学年</label>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-          {GRADES.map(g => (
-            <button key={g} onClick={() => setGrade(g)} style={optionBtn(grade === g)}>{g}</button>
-          ))}
+          {GRADES.map(g => <button key={g} onClick={() => setGrade(g)} style={optionBtn(grade === g)}>{g}</button>)}
         </div>
       </div>
-
       <div style={sectionStyle}>
         <label style={labelStyle}>🏆 競技種目</label>
         <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-          {SPORTS.map(s => (
-            <button key={s} onClick={() => setSport(sport === s ? "" : s)} style={{ flex: 1, ...optionBtn(sport === s) }}>{s}</button>
-          ))}
+          {SPORTS.map(s => <button key={s} onClick={() => setSport(sport === s ? "" : s)} style={{ flex: 1, ...optionBtn(sport === s) }}>{s}</button>)}
         </div>
         <button onClick={() => setIsPersonal(!isPersonal)} style={{
           display: "flex", alignItems: "center", gap: 10, width: "100%",
@@ -365,11 +435,13 @@ function AthleteScreen({ userProfile, onLogout, onProfileUpdate }) {
                 ? `${userProfile.lastNameKanji} ${userProfile.firstNameKanji}`.trim()
                 : userProfile.name}
             </div>
-            {(userProfile.grade || userProfile.sport || userProfile.isPersonal) && (
+            {userProfile.profileEditRequest ? (
+              <div style={{ fontSize: 11, color: "#60a5fa" }}>📨 変更申請中</div>
+            ) : (userProfile.grade || userProfile.sport || userProfile.isPersonal) ? (
               <div style={{ fontSize: 11, color: "#888" }}>
                 {[userProfile.grade, userProfile.sport, userProfile.isPersonal ? "パーソナル" : ""].filter(Boolean).join(" · ")}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
         <button onClick={onLogout} style={{
@@ -621,11 +693,23 @@ function CoachScreen({ userProfile, onLogout }) {
 
 function CoachAthletesTab({ athletes, allReports }) {
   const [selected, setSelected] = useState(null);
+  const [unlocking, setUnlocking] = useState(false);
+
+  const handleUnlock = async (athleteUid) => {
+    setUnlocking(true);
+    await setDoc(doc(db, "users", athleteUid), {
+      profileLocked: false,
+      profileEditRequest: false,
+    }, { merge: true });
+    setUnlocking(false);
+  };
 
   if (selected !== null) {
     const athlete = athletes.find(a => a.uid === selected);
     const athleteReports = allReports[selected] || {};
     const sortedDates = Object.keys(athleteReports).sort((a, b) => b.localeCompare(a));
+    const fullName = [athlete?.lastNameKanji, athlete?.firstNameKanji].filter(Boolean).join(" ");
+    const fullKana = [athlete?.lastNameKana, athlete?.firstNameKana].filter(Boolean).join(" ");
     return (
       <div style={{ padding: "20px 20px 60px" }}>
         <button onClick={() => setSelected(null)} style={{
@@ -633,13 +717,34 @@ function CoachAthletesTab({ athletes, allReports }) {
           color: "#aaa", fontSize: 13, padding: "8px 14px", cursor: "pointer", marginBottom: 20,
         }}>← 一覧に戻る</button>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
           <Avatar user={athlete} size={44} />
           <div>
-            <div style={{ fontSize: 20, fontWeight: 900 }}>{athlete?.name}</div>
+            <div style={{ fontSize: 20, fontWeight: 900 }}>{fullName || athlete?.name}</div>
+            {fullKana && <div style={{ fontSize: 12, color: "#888" }}>{fullKana}</div>}
             <div style={{ fontSize: 12, color: "#888" }}>{athlete?.sport || "未設定"} · {sortedDates.length}件の記録</div>
           </div>
         </div>
+
+        {athlete?.profileEditRequest && (
+          <div style={{
+            background: "#60a5fa18", border: "1px solid #60a5fa44",
+            borderRadius: 12, padding: 16, marginBottom: 20,
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+          }}>
+            <div>
+              <div style={{ fontSize: 13, color: "#60a5fa", fontWeight: 700 }}>📨 プロフィール変更申請あり</div>
+              <div style={{ fontSize: 12, color: "#888", marginTop: 4 }}>許可すると選手が1回だけ編集できます</div>
+            </div>
+            <button onClick={() => handleUnlock(athlete.uid)} disabled={unlocking} style={{
+              background: "#60a5fa", color: "#fff", border: "none",
+              borderRadius: 10, padding: "10px 16px", fontSize: 13, fontWeight: 700,
+              cursor: unlocking ? "not-allowed" : "pointer", whiteSpace: "nowrap",
+            }}>
+              {unlocking ? "処理中..." : "🔓 編集を許可"}
+            </button>
+          </div>
+        )}
 
         <div style={{ background: BG_CARD, borderRadius: 16, border: "1px solid " + BORDER, padding: 16, marginBottom: 24 }}>
           <div style={{ fontSize: 12, color: ACCENT, fontWeight: 700, marginBottom: 12, letterSpacing: "0.08em" }}>📊 14日間のトレンド</div>
@@ -698,14 +803,22 @@ function CoachAthletesTab({ athletes, allReports }) {
             {isAlert && (
               <div style={{
                 background: "#ef444418", border: "1px solid #ef444440",
-                borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#ef4444", fontWeight: 700, marginBottom: 12,
+                borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#ef4444", fontWeight: 700, marginBottom: 8,
               }}>🚨 要チェック — メンタル/体調が低下</div>
+            )}
+            {athlete.profileEditRequest && (
+              <div style={{
+                background: "#60a5fa18", border: "1px solid #60a5fa44",
+                borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#60a5fa", fontWeight: 700, marginBottom: 8,
+              }}>📨 プロフィール変更申請あり</div>
             )}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <Avatar user={athlete} size={40} />
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 800 }}>{athlete.name}</div>
+                  <div style={{ fontSize: 15, fontWeight: 800 }}>
+                    {[athlete.lastNameKanji, athlete.firstNameKanji].filter(Boolean).join(" ") || athlete.name}
+                  </div>
                   <div style={{ fontSize: 11, color: "#888" }}>{athlete.sport || "未設定"} · {totalReports}件の記録</div>
                 </div>
               </div>

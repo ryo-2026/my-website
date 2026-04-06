@@ -1,6 +1,6 @@
 // ============ Athlete Management — Service Worker ============
-const APP_CACHE  = 'athlete-app-v1';
-const CDN_CACHE  = 'athlete-cdn-v1';
+const APP_CACHE  = 'athlete-app-v2';
+const CDN_CACHE  = 'athlete-cdn-v2';
 
 const LOCAL_ASSETS = [
   '/',

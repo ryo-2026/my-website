@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 import {
   doc, getDoc, setDoc, collection,
@@ -186,6 +186,110 @@ function LoginScreen() {
           {loading ? "ログイン中..." : "Googleでログイン"}
         </button>
         {error && <div style={{ color: "#ef4444", fontSize: 13, marginTop: 16, textAlign: "center" }}>{error}</div>}
+      </div>
+    </div>
+  );
+}
+
+// ============ PIN ENTRY SCREEN ============
+function PinEntryScreen({ firebaseUser, onSuccess }) {
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!pin) return;
+    setLoading(true);
+    setError("");
+    try {
+      const settingsSnap = await getDoc(doc(db, "config", "teamSettings"));
+      const teamPin = settingsSnap.data()?.pin;
+      if (!teamPin) {
+        setError("PINがまだ設定されていません。コーチに確認してください。");
+        return;
+      }
+      if (pin !== teamPin) {
+        setError("PINが違います。コーチに確認してください。");
+        return;
+      }
+      const userRef = doc(db, "users", firebaseUser.uid);
+      await setDoc(userRef, {
+        uid: firebaseUser.uid,
+        name: firebaseUser.displayName || "Unknown",
+        email: firebaseUser.email,
+        photoURL: firebaseUser.photoURL || "",
+        role: "athlete",
+        sport: "",
+        avatar: "🏃",
+        createdAt: new Date().toISOString(),
+      });
+      onSuccess(firebaseUser);
+    } catch {
+      setError("エラーが発生しました。もう一度お試しください。");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight: "100vh", background: BG,
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      padding: 24, color: "#fff",
+    }}>
+      <div style={{ textAlign: "center", marginBottom: 40 }}>
+        <div style={{ fontSize: 52, marginBottom: 12 }}>🔑</div>
+        <div style={{ fontSize: 22, fontWeight: 900 }}>チームPINを入力</div>
+        <div style={{ fontSize: 13, color: "#888", marginTop: 8 }}>
+          コーチから共有されたPINコードを入力してください
+        </div>
+      </div>
+
+      <div style={{ width: "100%", maxWidth: 320 }}>
+        <input
+          type="tel"
+          value={pin}
+          onChange={e => setPin(e.target.value.replace(/\D/g, "").slice(0, 8))}
+          placeholder="PINコード"
+          style={{
+            width: "100%", padding: "16px", boxSizing: "border-box",
+            background: BG_CARD, border: `2px solid ${error ? "#ef4444" : BORDER}`,
+            borderRadius: 14, color: "#fff",
+            fontSize: 24, fontWeight: 700, letterSpacing: "0.3em",
+            textAlign: "center", outline: "none",
+          }}
+          onKeyDown={e => e.key === "Enter" && handleSubmit()}
+        />
+        {error && (
+          <div style={{ color: "#ef4444", fontSize: 13, marginTop: 10, textAlign: "center" }}>
+            {error}
+          </div>
+        )}
+        <button
+          onClick={handleSubmit}
+          disabled={loading || !pin}
+          style={{
+            width: "100%", marginTop: 16, padding: 16,
+            background: pin && !loading ? ACCENT : "#252535",
+            border: "none", borderRadius: 14,
+            color: pin && !loading ? "#000" : "#555",
+            fontSize: 15, fontWeight: 700,
+            cursor: pin && !loading ? "pointer" : "not-allowed",
+          }}
+        >
+          {loading ? "確認中..." : "参加する"}
+        </button>
+        <button
+          onClick={() => signOut(auth)}
+          style={{
+            width: "100%", marginTop: 10, padding: 12,
+            background: "transparent", border: "none",
+            color: "#555", fontSize: 13, cursor: "pointer",
+          }}
+        >
+          別のアカウントでログイン
+        </button>
       </div>
     </div>
   );
@@ -639,6 +743,7 @@ function CoachScreen({ userProfile, onLogout }) {
   const TABS = [
     { id: "athletes", label: "選手一覧",   icon: "👥" },
     { id: "alerts",   label: "要チェック", icon: "🚨", badge: badgeCount },
+    { id: "settings", label: "設定",       icon: "⚙️" },
   ];
 
   return (
@@ -683,10 +788,9 @@ function CoachScreen({ userProfile, onLogout }) {
         ))}
       </div>
 
-      {tab === "athletes"
-        ? <CoachAthletesTab athletes={athletes} allReports={allReports} />
-        : <CoachAlertsTab athletes={athletes} allReports={allReports} />
-      }
+      {tab === "athletes" && <CoachAthletesTab athletes={athletes} allReports={allReports} />}
+      {tab === "alerts"   && <CoachAlertsTab athletes={athletes} allReports={allReports} />}
+      {tab === "settings" && <CoachSettingsTab />}
     </div>
   );
 }
@@ -915,39 +1019,137 @@ function CoachAlertsTab({ athletes, allReports }) {
   );
 }
 
+// ============ COACH SETTINGS TAB ============
+function CoachSettingsTab() {
+  const [currentPin, setCurrentPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [showPin, setShowPin] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [loadingPin, setLoadingPin] = useState(true);
+
+  useEffect(() => {
+    getDoc(doc(db, "config", "teamSettings")).then(snap => {
+      if (snap.exists()) setCurrentPin(snap.data().pin || "");
+      setLoadingPin(false);
+    });
+  }, []);
+
+  const handleSave = async () => {
+    if (!newPin) return;
+    setSaving(true);
+    await setDoc(doc(db, "config", "teamSettings"), { pin: newPin });
+    setCurrentPin(newPin);
+    setNewPin("");
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  return (
+    <div style={{ padding: 20 }}>
+      <div style={{ fontSize: 13, color: ACCENT, fontWeight: 700, letterSpacing: "0.15em", marginBottom: 20 }}>
+        チーム参加PIN
+      </div>
+
+      <div style={{
+        background: BG_CARD, border: "1px solid " + BORDER,
+        borderRadius: 14, padding: 16, marginBottom: 24,
+      }}>
+        <div style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>現在のPIN</div>
+        {loadingPin ? (
+          <div style={{ color: "#555", fontSize: 13 }}>読み込み中...</div>
+        ) : currentPin ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "0.3em", color: ACCENT, flex: 1 }}>
+              {showPin ? currentPin : "●".repeat(currentPin.length)}
+            </div>
+            <button
+              onClick={() => setShowPin(!showPin)}
+              style={{
+                background: "transparent", border: "1px solid " + BORDER,
+                borderRadius: 8, color: "#888", fontSize: 12, padding: "4px 10px", cursor: "pointer",
+              }}
+            >
+              {showPin ? "隠す" : "表示"}
+            </button>
+          </div>
+        ) : (
+          <div style={{ color: "#555", fontSize: 13 }}>未設定</div>
+        )}
+      </div>
+
+      <div style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>
+        {currentPin ? "PINを変更" : "PINを設定"}
+      </div>
+      <input
+        type="tel"
+        value={newPin}
+        onChange={e => setNewPin(e.target.value.replace(/\D/g, "").slice(0, 8))}
+        placeholder="新しいPINコード（数字）"
+        style={{
+          width: "100%", boxSizing: "border-box",
+          padding: "14px", background: BG_CARD,
+          border: "1px solid " + BORDER, borderRadius: 14,
+          color: "#fff", fontSize: 22, fontWeight: 700,
+          letterSpacing: "0.3em", textAlign: "center", outline: "none",
+        }}
+        onKeyDown={e => e.key === "Enter" && handleSave()}
+      />
+      <div style={{ fontSize: 11, color: "#555", marginTop: 6, textAlign: "center" }}>
+        選手に口頭またはLINEで共有してください
+      </div>
+      <button
+        onClick={handleSave}
+        disabled={!newPin || saving}
+        style={{
+          width: "100%", marginTop: 16, padding: 14,
+          background: newPin && !saving ? ACCENT : "#252535",
+          border: "none", borderRadius: 14,
+          color: newPin && !saving ? "#000" : "#555",
+          fontSize: 14, fontWeight: 700,
+          cursor: newPin && !saving ? "pointer" : "not-allowed",
+        }}
+      >
+        {saving ? "保存中..." : saved ? "✓ 保存しました" : "PINを保存"}
+      </button>
+    </div>
+  );
+}
+
 // ============ ROOT ============
 export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
+  const [pendingFirebaseUser, setPendingFirebaseUser] = useState(null);
+  const profileUnsubRef = useRef(null);
+
+  const setupProfileListener = (firebaseUser) => {
+    if (profileUnsubRef.current) profileUnsubRef.current();
+    const userRef = doc(db, "users", firebaseUser.uid);
+    profileUnsubRef.current = onSnapshot(userRef, (snap) => {
+      if (snap.exists()) setUserProfile(snap.data());
+    });
+  };
 
   useEffect(() => {
-    let unsubUser = null;
-
     const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (unsubUser) { unsubUser(); unsubUser = null; }
+      if (profileUnsubRef.current) { profileUnsubRef.current(); profileUnsubRef.current = null; }
 
       if (firebaseUser) {
         const userRef = doc(db, "users", firebaseUser.uid);
         const userSnap = await getDoc(userRef);
         if (!userSnap.exists()) {
-          const newProfile = {
-            uid: firebaseUser.uid,
-            name: firebaseUser.displayName || "Unknown",
-            email: firebaseUser.email,
-            photoURL: firebaseUser.photoURL || "",
-            role: "athlete",
-            sport: "",
-            avatar: "🏃",
-            createdAt: new Date().toISOString(),
-          };
-          await setDoc(userRef, newProfile);
+          // 新規ユーザー → PIN入力画面へ
+          setPendingFirebaseUser(firebaseUser);
+          setAuthLoading(false);
+          return;
         }
         setAuthLoading(false);
         // リアルタイムでユーザードキュメントを監視（コーチのアンロックが即反映される）
-        unsubUser = onSnapshot(userRef, (snap) => {
-          if (snap.exists()) setUserProfile(snap.data());
-        });
+        setupProfileListener(firebaseUser);
       } else {
+        setPendingFirebaseUser(null);
         setUserProfile(null);
         setAuthLoading(false);
       }
@@ -955,12 +1157,18 @@ export default function App() {
 
     return () => {
       unsubAuth();
-      if (unsubUser) unsubUser();
+      if (profileUnsubRef.current) profileUnsubRef.current();
     };
   }, []);
 
+  const handlePinSuccess = (firebaseUser) => {
+    setPendingFirebaseUser(null);
+    setupProfileListener(firebaseUser);
+  };
+
   const handleLogout = async () => {
     await signOut(auth);
+    setPendingFirebaseUser(null);
     setUserProfile(null);
   };
 
@@ -976,6 +1184,7 @@ export default function App() {
     );
   }
 
+  if (pendingFirebaseUser) return <PinEntryScreen firebaseUser={pendingFirebaseUser} onSuccess={handlePinSuccess} />;
   if (!userProfile) return <LoginScreen />;
   if (userProfile.role === "coach") return <CoachScreen userProfile={userProfile} onLogout={handleLogout} />;
   return <AthleteScreen userProfile={userProfile} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} />;

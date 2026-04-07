@@ -921,13 +921,15 @@ export default function App() {
   const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+    let unsubUser = null;
+
+    const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (unsubUser) { unsubUser(); unsubUser = null; }
+
       if (firebaseUser) {
         const userRef = doc(db, "users", firebaseUser.uid);
         const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          setUserProfile(userSnap.data());
-        } else {
+        if (!userSnap.exists()) {
           const newProfile = {
             uid: firebaseUser.uid,
             name: firebaseUser.displayName || "Unknown",
@@ -939,14 +941,22 @@ export default function App() {
             createdAt: new Date().toISOString(),
           };
           await setDoc(userRef, newProfile);
-          setUserProfile(newProfile);
         }
+        setAuthLoading(false);
+        // リアルタイムでユーザードキュメントを監視（コーチのアンロックが即反映される）
+        unsubUser = onSnapshot(userRef, (snap) => {
+          if (snap.exists()) setUserProfile(snap.data());
+        });
       } else {
         setUserProfile(null);
+        setAuthLoading(false);
       }
-      setAuthLoading(false);
     });
-    return unsub;
+
+    return () => {
+      unsubAuth();
+      if (unsubUser) unsubUser();
+    };
   }, []);
 
   const handleLogout = async () => {

@@ -1071,7 +1071,7 @@ function CoachAlertsTab({ athletes, allReports }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
                   <Avatar user={athlete} size={36} />
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 800 }}>{athlete.name}</div>
+                    <div style={{ fontSize: 14, fontWeight: 800 }}>{[athlete.lastNameKanji, athlete.firstNameKanji].filter(Boolean).join(" ") || athlete.name}</div>
                     <div style={{ fontSize: 11, color: "#888" }}>{athlete.sport || "未設定"}</div>
                   </div>
                 </div>
@@ -1098,7 +1098,7 @@ function CoachAlertsTab({ athletes, allReports }) {
             }}>
               <Avatar user={athlete} size={36} />
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>{athlete.name}</div>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>{[athlete.lastNameKanji, athlete.firstNameKanji].filter(Boolean).join(" ") || athlete.name}</div>
                 <div style={{ fontSize: 12, color: "#f97316" }}>日報未提出</div>
               </div>
             </div>

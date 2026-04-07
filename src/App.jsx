@@ -798,6 +798,10 @@ function CoachScreen({ userProfile, onLogout }) {
 function CoachAthletesTab({ athletes, allReports }) {
   const [selected, setSelected] = useState(null);
   const [unlocking, setUnlocking] = useState(false);
+  const [nameQuery, setNameQuery] = useState("");
+  const [filterSport, setFilterSport] = useState("");
+  const [filterGrade, setFilterGrade] = useState("");
+  const [filterGender, setFilterGender] = useState("");
 
   const handleUnlock = async (athleteUid) => {
     setUnlocking(true);
@@ -887,12 +891,94 @@ function CoachAthletesTab({ athletes, allReports }) {
     );
   }
 
+  const filteredAthletes = athletes.filter(a => {
+    const fullName = [a.lastNameKanji, a.firstNameKanji].filter(Boolean).join("");
+    const fullKana = [a.lastNameKana, a.firstNameKana].filter(Boolean).join("");
+    const q = nameQuery.replace(/\s/g, "");
+    if (q && !fullName.includes(q) && !fullKana.includes(q)) return false;
+    if (filterSport && a.sport !== filterSport) return false;
+    if (filterGrade && a.grade !== filterGrade) return false;
+    if (filterGender && a.gender !== filterGender) return false;
+    return true;
+  });
+
+  const filterBtnStyle = (active) => ({
+    padding: "6px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700,
+    cursor: "pointer", whiteSpace: "nowrap",
+    border: `1px solid ${active ? ACCENT : BORDER}`,
+    background: active ? ACCENT + "22" : BG_CARD,
+    color: active ? ACCENT : "#666",
+  });
+
   return (
     <div style={{ padding: "20px 20px 60px" }}>
-      <div style={{ fontSize: 12, color: "#888", marginBottom: 16 }}>{todayLabel()}</div>
+      <div style={{ fontSize: 12, color: "#888", marginBottom: 12 }}>{todayLabel()}</div>
+
+      {/* 名前検索 */}
+      <div style={{ position: "relative", marginBottom: 12 }}>
+        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 15, color: "#555" }}>🔍</span>
+        <input
+          value={nameQuery}
+          onChange={e => setNameQuery(e.target.value)}
+          placeholder="名前で検索..."
+          style={{
+            width: "100%", boxSizing: "border-box",
+            background: BG_CARD, border: "1px solid " + BORDER,
+            borderRadius: 12, padding: "11px 14px 11px 36px",
+            color: "#fff", fontSize: 14, outline: "none", fontFamily: "inherit",
+          }}
+        />
+        {nameQuery && (
+          <button onClick={() => setNameQuery("")} style={{
+            position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
+            background: "none", border: "none", color: "#555", fontSize: 18, cursor: "pointer", lineHeight: 1,
+          }}>×</button>
+        )}
+      </div>
+
+      {/* 競技フィルター */}
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ fontSize: 11, color: "#666", fontWeight: 700, marginBottom: 6 }}>競技</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button style={filterBtnStyle(filterSport === "")} onClick={() => setFilterSport("")}>全て</button>
+          {SPORTS.map(s => (
+            <button key={s} style={filterBtnStyle(filterSport === s)} onClick={() => setFilterSport(filterSport === s ? "" : s)}>{s}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* 学年フィルター */}
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ fontSize: 11, color: "#666", fontWeight: 700, marginBottom: 6 }}>学年</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button style={filterBtnStyle(filterGrade === "")} onClick={() => setFilterGrade("")}>全て</button>
+          {GRADES.map(g => (
+            <button key={g} style={filterBtnStyle(filterGrade === g)} onClick={() => setFilterGrade(filterGrade === g ? "" : g)}>{g}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* 性別フィルター */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 11, color: "#666", fontWeight: 700, marginBottom: 6 }}>性別</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button style={filterBtnStyle(filterGender === "")} onClick={() => setFilterGender("")}>全て</button>
+          {GENDERS.map(g => (
+            <button key={g} style={filterBtnStyle(filterGender === g)} onClick={() => setFilterGender(filterGender === g ? "" : g)}>{g}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* 件数表示 */}
+      <div style={{ fontSize: 12, color: "#555", marginBottom: 12 }}>
+        {filteredAthletes.length}件 / {athletes.length}人
+      </div>
+
       {athletes.length === 0 ? (
         <div style={{ color: "#555", textAlign: "center", padding: 40 }}>選手が登録されていません</div>
-      ) : athletes.map(athlete => {
+      ) : filteredAthletes.length === 0 ? (
+        <div style={{ color: "#555", textAlign: "center", padding: 40 }}>条件に一致する選手がいません</div>
+      ) : filteredAthletes.map(athlete => {
         const todayRep = allReports[athlete.uid]?.[todayStr()];
         const totalReports = Object.keys(allReports[athlete.uid] || {}).length;
         const isAlert = todayRep && (todayRep.mood <= 2 || todayRep.body <= 2);

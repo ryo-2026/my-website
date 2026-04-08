@@ -806,6 +806,7 @@ function CoachAthletesTab({ athletes, allReports }) {
   const [filterSport, setFilterSport] = useState("");
   const [filterGrade, setFilterGrade] = useState("");
   const [filterGender, setFilterGender] = useState("");
+  const [filterPersonal, setFilterPersonal] = useState("");
 
   const handleUnlock = async (athleteUid) => {
     setUnlocking(true);
@@ -903,6 +904,7 @@ function CoachAthletesTab({ athletes, allReports }) {
     if (filterSport && a.sport !== filterSport) return false;
     if (filterGrade && a.grade !== filterGrade) return false;
     if (filterGender && a.gender !== filterGender) return false;
+    if (filterPersonal === "パーソナル" && !a.isPersonal) return false;
     return true;
   });
 
@@ -963,13 +965,22 @@ function CoachAthletesTab({ athletes, allReports }) {
       </div>
 
       {/* 性別フィルター */}
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 8 }}>
         <div style={{ fontSize: 11, color: "#666", fontWeight: 700, marginBottom: 6 }}>性別</div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           <button style={filterBtnStyle(filterGender === "")} onClick={() => setFilterGender("")}>全て</button>
           {GENDERS.map(g => (
             <button key={g} style={filterBtnStyle(filterGender === g)} onClick={() => setFilterGender(filterGender === g ? "" : g)}>{g}</button>
           ))}
+        </div>
+      </div>
+
+      {/* パーソナルフィルター */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 11, color: "#666", fontWeight: 700, marginBottom: 6 }}>パーソナル</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button style={filterBtnStyle(filterPersonal === "")} onClick={() => setFilterPersonal("")}>全て</button>
+          <button style={filterBtnStyle(filterPersonal === "パーソナル")} onClick={() => setFilterPersonal(filterPersonal === "パーソナル" ? "" : "パーソナル")}>パーソナル</button>
         </div>
       </div>
 

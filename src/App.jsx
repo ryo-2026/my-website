@@ -581,7 +581,6 @@ function AthleteReportTab({ todayReport, onSubmit }) {
   const [body, setBody] = useState(null);
   const [concern, setConcern] = useState("");
   const [message, setMessage] = useState("");
-  const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const canSubmit = training.trim() && mood && body;
@@ -589,13 +588,11 @@ function AthleteReportTab({ todayReport, onSubmit }) {
   const handleSubmit = async () => {
     setSaving(true);
     await onSubmit({ training, mood, body, concern, message });
-    setSubmitted(true);
     setSaving(false);
   };
 
-  const displayReport = submitted ? { training, mood, body, concern, message } : todayReport;
-
-  if (displayReport && (submitted || todayReport)) {
+  if (todayReport) {
+    const displayReport = todayReport;
     const m = MOOD_LEVELS.find(l => l.value === displayReport.mood);
     const b = BODY_LEVELS.find(l => l.value === displayReport.body);
     return (

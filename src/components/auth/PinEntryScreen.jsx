@@ -3,6 +3,7 @@ import { signOut } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "../../firebase";
 import { ACCENT, BG, BG_CARD, BORDER } from "../../constants";
+import { hashPin } from "../../utils/pinHash";
 
 export default function PinEntryScreen({ firebaseUser, onSuccess }) {
   const [pin, setPin] = useState("");
@@ -15,13 +16,23 @@ export default function PinEntryScreen({ firebaseUser, onSuccess }) {
     setError("");
     try {
       const settingsSnap = await getDoc(doc(db, "config", "teamSettings"));
-      const teamPin = settingsSnap.data()?.pin;
-      if (!teamPin) {
+      const data = settingsSnap.data();
+
+      if (data?.pinHash && data?.pinSalt) {
+        // ハッシュ化済みPINと比較
+        const inputHash = await hashPin(pin, data.pinSalt);
+        if (inputHash !== data.pinHash) {
+          setError("PINが違います。コーチに確認してください。");
+          return;
+        }
+      } else if (data?.pin) {
+        // 旧プレーンテキストPINとの後方互換（コーチがPINを再設定するまでの移行期間）
+        if (pin !== data.pin) {
+          setError("PINが違います。コーチに確認してください。");
+          return;
+        }
+      } else {
         setError("PINがまだ設定されていません。コーチに確認してください。");
-        return;
-      }
-      if (pin !== teamPin) {
-        setError("PINが違います。コーチに確認してください。");
         return;
       }
       const userRef = doc(db, "users", firebaseUser.uid);

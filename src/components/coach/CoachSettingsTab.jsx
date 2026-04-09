@@ -2,11 +2,11 @@ import { useState, useEffect } from "react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../../firebase";
 import { ACCENT, BG_CARD, BORDER } from "../../constants";
+import { generateSalt, hashPin } from "../../utils/pinHash";
 
 export default function CoachSettingsTab({ userProfile }) {
-  const [currentPin, setCurrentPin] = useState("");
+  const [hasPinSet, setHasPinSet] = useState(false);
   const [newPin, setNewPin] = useState("");
-  const [showPin, setShowPin] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loadingPin, setLoadingPin] = useState(true);
@@ -26,7 +26,10 @@ export default function CoachSettingsTab({ userProfile }) {
 
   useEffect(() => {
     getDoc(doc(db, "config", "teamSettings")).then(snap => {
-      if (snap.exists()) setCurrentPin(snap.data().pin || "");
+      if (snap.exists()) {
+        const data = snap.data();
+        setHasPinSet(!!(data.pinHash || data.pin));
+      }
       setLoadingPin(false);
     });
   }, []);
@@ -45,8 +48,10 @@ export default function CoachSettingsTab({ userProfile }) {
   const handleSave = async () => {
     if (!newPin) return;
     setSaving(true);
-    await setDoc(doc(db, "config", "teamSettings"), { pin: newPin });
-    setCurrentPin(newPin);
+    const salt = generateSalt();
+    const hash = await hashPin(newPin, salt);
+    await setDoc(doc(db, "config", "teamSettings"), { pinHash: hash, pinSalt: salt });
+    setHasPinSet(true);
     setNewPin("");
     setSaving(false);
     setSaved(true);
@@ -98,20 +103,10 @@ export default function CoachSettingsTab({ userProfile }) {
         <div style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>現在のPIN</div>
         {loadingPin ? (
           <div style={{ color: "#555", fontSize: 13 }}>読み込み中...</div>
-        ) : currentPin ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "0.3em", color: ACCENT, flex: 1 }}>
-              {showPin ? currentPin : "●".repeat(currentPin.length)}
-            </div>
-            <button
-              onClick={() => setShowPin(!showPin)}
-              style={{
-                background: "transparent", border: "1px solid " + BORDER,
-                borderRadius: 8, color: "#888", fontSize: 12, padding: "4px 10px", cursor: "pointer",
-              }}
-            >
-              {showPin ? "隠す" : "表示"}
-            </button>
+        ) : hasPinSet ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ fontSize: 20, color: ACCENT, fontWeight: 700 }}>設定済み</div>
+            <div style={{ fontSize: 11, color: "#555" }}>（セキュリティのため表示不可）</div>
           </div>
         ) : (
           <div style={{ color: "#555", fontSize: 13 }}>未設定</div>
@@ -119,7 +114,7 @@ export default function CoachSettingsTab({ userProfile }) {
       </div>
 
       <div style={{ fontSize: 11, color: "#888", marginBottom: 8 }}>
-        {currentPin ? "PINを変更" : "PINを設定"}
+        {hasPinSet ? "PINを変更" : "PINを設定"}
       </div>
       <input
         type="tel"

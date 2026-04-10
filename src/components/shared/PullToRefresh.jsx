@@ -60,32 +60,34 @@ export default function PullToRefresh({ onRefresh, children }) {
     };
   }, [onRefresh]);
 
-  const indicatorH = refreshing ? 52 : pullY;
+  const visible = refreshing || pullY > 10;
   const progress = Math.min(pullY / THRESHOLD, 1);
   const rotation = pullY * 3.5;
 
   return (
     <div>
-      <div style={{
-        height: indicatorH,
-        overflow: "hidden",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        transition: (pullY === 0 && !refreshing) ? "height 0.22s ease" : "none",
-      }}>
+      {visible && (
         <div style={{
-          width: 32,
-          height: 32,
-          borderRadius: "50%",
-          border: `2px solid ${ACCENT}`,
-          borderTopColor: "transparent",
-          opacity: refreshing ? 1 : progress,
-          transform: refreshing ? undefined : `rotate(${rotation}deg)`,
-          animation: refreshing ? "ptr-spin 0.7s linear infinite" : "none",
-          transition: refreshing ? "none" : "opacity 0.1s",
-        }} />
-      </div>
+          position: "fixed",
+          top: 0, left: 0, right: 0, bottom: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+          pointerEvents: "none",
+        }}>
+          <div style={{
+            width: 48,
+            height: 48,
+            borderRadius: "50%",
+            border: `3px solid ${ACCENT}`,
+            borderTopColor: "transparent",
+            opacity: refreshing ? 1 : progress,
+            transform: refreshing ? undefined : `rotate(${rotation}deg)`,
+            animation: refreshing ? "ptr-spin 0.7s linear infinite" : "none",
+          }} />
+        </div>
+      )}
       {children}
     </div>
   );

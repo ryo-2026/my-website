@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, setDoc, where, writeBatch } from "firebase/firestore";
 import { db } from "../../firebase";
-import { ACCENT, BG_CARD, BORDER } from "../../constants";
+import { ACCENT, BG_CARD, BORDER, GRADES } from "../../constants";
 import { generateSalt, hashPin } from "../../utils/pinHash";
 
 export default function CoachSettingsTab({ userProfile }) {
@@ -17,6 +17,10 @@ export default function CoachSettingsTab({ userProfile }) {
   const [firstNameKana, setFirstNameKana] = useState(userProfile?.firstNameKana || "");
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
+
+  const [gradeAdvancing, setGradeAdvancing] = useState(false);
+  const [gradeAdvanced, setGradeAdvanced] = useState(null); // 更新人数
+  const [gradeConfirm, setGradeConfirm] = useState(false);
 
   const inputStyle = {
     flex: 1, background: "#1a1a2e", border: "1px solid " + BORDER,
@@ -43,6 +47,24 @@ export default function CoachSettingsTab({ userProfile }) {
     setProfileSaving(false);
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 2000);
+  };
+
+  const handleAdvanceGrades = async () => {
+    setGradeAdvancing(true);
+    setGradeConfirm(false);
+    const snap = await getDocs(query(collection(db, "users"), where("role", "==", "athlete")));
+    const batch = writeBatch(db);
+    let count = 0;
+    snap.docs.forEach(docSnap => {
+      const idx = GRADES.indexOf(docSnap.data().grade);
+      if (idx === -1 || idx === GRADES.length - 1) return;
+      batch.update(docSnap.ref, { grade: GRADES[idx + 1] });
+      count++;
+    });
+    if (count > 0) await batch.commit();
+    setGradeAdvancing(false);
+    setGradeAdvanced(count);
+    setTimeout(() => setGradeAdvanced(null), 3000);
   };
 
   const handleSave = async () => {
@@ -91,6 +113,59 @@ export default function CoachSettingsTab({ userProfile }) {
       >
         {profileSaving ? "保存中..." : profileSaved ? "✓ 保存しました" : "プロフィールを保存"}
       </button>
+
+      <div style={{ fontSize: 13, color: ACCENT, fontWeight: 700, letterSpacing: "0.15em", marginBottom: 16 }}>
+        学年管理
+      </div>
+      <div style={{ fontSize: 12, color: "#888", marginBottom: 12, lineHeight: 1.7 }}>
+        全選手の学年を1年繰り上げます。中3はそのままです。毎年4月に1回実行してください。
+      </div>
+      {!gradeConfirm ? (
+        <button
+          onClick={() => setGradeConfirm(true)}
+          disabled={gradeAdvancing}
+          style={{
+            width: "100%", marginBottom: 32, padding: 14,
+            background: "#252535", border: "1px solid #ef444440",
+            borderRadius: 14, color: "#ef4444",
+            fontSize: 14, fontWeight: 700, cursor: "pointer",
+          }}
+        >
+          {gradeAdvanced !== null ? `✓ ${gradeAdvanced}人を更新しました` : "学年を一括繰り上げる"}
+        </button>
+      ) : (
+        <div style={{
+          background: "#ef444418", border: "1px solid #ef444440",
+          borderRadius: 14, padding: 16, marginBottom: 32,
+        }}>
+          <div style={{ fontSize: 13, color: "#ef4444", fontWeight: 700, marginBottom: 12 }}>
+            本当に実行しますか？全選手の学年が繰り上がります。
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={handleAdvanceGrades}
+              disabled={gradeAdvancing}
+              style={{
+                flex: 1, padding: 12, background: "#ef4444",
+                border: "none", borderRadius: 10, color: "#fff",
+                fontSize: 14, fontWeight: 700, cursor: "pointer",
+              }}
+            >
+              {gradeAdvancing ? "処理中..." : "実行する"}
+            </button>
+            <button
+              onClick={() => setGradeConfirm(false)}
+              style={{
+                flex: 1, padding: 12, background: "#252535",
+                border: "1px solid " + BORDER, borderRadius: 10, color: "#888",
+                fontSize: 14, fontWeight: 700, cursor: "pointer",
+              }}
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
+      )}
 
       <div style={{ fontSize: 13, color: ACCENT, fontWeight: 700, letterSpacing: "0.15em", marginBottom: 20 }}>
         チーム参加PIN

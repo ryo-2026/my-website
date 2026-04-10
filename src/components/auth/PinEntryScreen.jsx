@@ -19,15 +19,8 @@ export default function PinEntryScreen({ firebaseUser, onSuccess }) {
       const data = settingsSnap.data();
 
       if (data?.pinHash && data?.pinSalt) {
-        // ハッシュ化済みPINと比較
         const inputHash = await hashPin(pin, data.pinSalt);
         if (inputHash !== data.pinHash) {
-          setError("PINが違います。コーチに確認してください。");
-          return;
-        }
-      } else if (data?.pin) {
-        // 旧プレーンテキストPINとの後方互換（コーチがPINを再設定するまでの移行期間）
-        if (pin !== data.pin) {
           setError("PINが違います。コーチに確認してください。");
           return;
         }

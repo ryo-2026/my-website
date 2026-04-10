@@ -28,7 +28,7 @@ export default function CoachSettingsTab({ userProfile }) {
     getDoc(doc(db, "config", "teamSettings")).then(snap => {
       if (snap.exists()) {
         const data = snap.data();
-        setHasPinSet(!!(data.pinHash || data.pin));
+        setHasPinSet(!!data.pinHash);
       }
       setLoadingPin(false);
     });
@@ -50,7 +50,7 @@ export default function CoachSettingsTab({ userProfile }) {
     setSaving(true);
     const salt = generateSalt();
     const hash = await hashPin(newPin, salt);
-    await setDoc(doc(db, "config", "teamSettings"), { pinHash: hash, pinSalt: salt });
+    await setDoc(doc(db, "config", "teamSettings"), { pinHash: hash, pinSalt: salt }, { merge: true });
     setHasPinSet(true);
     setNewPin("");
     setSaving(false);

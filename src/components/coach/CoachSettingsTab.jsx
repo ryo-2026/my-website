@@ -21,6 +21,7 @@ export default function CoachSettingsTab({ userProfile }) {
   const [gradeAdvancing, setGradeAdvancing] = useState(false);
   const [gradeAdvanced, setGradeAdvanced] = useState(null); // 更新人数
   const [gradeConfirm, setGradeConfirm] = useState(false);
+  const [gradeError, setGradeError] = useState("");
 
   const inputStyle = {
     flex: 1, background: "#1a1a2e", border: "1px solid " + BORDER,
@@ -52,19 +53,25 @@ export default function CoachSettingsTab({ userProfile }) {
   const handleAdvanceGrades = async () => {
     setGradeAdvancing(true);
     setGradeConfirm(false);
-    const snap = await getDocs(query(collection(db, "users"), where("role", "==", "athlete")));
-    const batch = writeBatch(db);
-    let count = 0;
-    snap.docs.forEach(docSnap => {
-      const idx = GRADES.indexOf(docSnap.data().grade);
-      if (idx === -1 || idx === GRADES.length - 1) return;
-      batch.update(docSnap.ref, { grade: GRADES[idx + 1] });
-      count++;
-    });
-    if (count > 0) await batch.commit();
-    setGradeAdvancing(false);
-    setGradeAdvanced(count);
-    setTimeout(() => setGradeAdvanced(null), 3000);
+    setGradeError("");
+    try {
+      const snap = await getDocs(query(collection(db, "users"), where("role", "==", "athlete")));
+      const batch = writeBatch(db);
+      let count = 0;
+      snap.docs.forEach(docSnap => {
+        const idx = GRADES.indexOf(docSnap.data().grade);
+        if (idx === -1 || idx === GRADES.length - 1) return;
+        batch.update(docSnap.ref, { grade: GRADES[idx + 1] });
+        count++;
+      });
+      if (count > 0) await batch.commit();
+      setGradeAdvanced(count);
+      setTimeout(() => setGradeAdvanced(null), 4000);
+    } catch (e) {
+      setGradeError("エラー: " + e.message);
+    } finally {
+      setGradeAdvancing(false);
+    }
   };
 
   const handleSave = async () => {
@@ -120,18 +127,21 @@ export default function CoachSettingsTab({ userProfile }) {
       <div style={{ fontSize: 12, color: "#888", marginBottom: 12, lineHeight: 1.7 }}>
         全選手の学年を1年繰り上げます。中3はそのままです。毎年4月に1回実行してください。
       </div>
+      {gradeError && (
+        <div style={{ color: "#ef4444", fontSize: 12, marginBottom: 10 }}>{gradeError}</div>
+      )}
       {!gradeConfirm ? (
         <button
-          onClick={() => setGradeConfirm(true)}
+          onClick={() => { setGradeConfirm(true); setGradeError(""); }}
           disabled={gradeAdvancing}
           style={{
             width: "100%", marginBottom: 32, padding: 14,
             background: "#252535", border: "1px solid #ef444440",
-            borderRadius: 14, color: "#ef4444",
+            borderRadius: 14, color: gradeAdvanced !== null ? "#22c55e" : "#ef4444",
             fontSize: 14, fontWeight: 700, cursor: "pointer",
           }}
         >
-          {gradeAdvanced !== null ? `✓ ${gradeAdvanced}人を更新しました` : "学年を一括繰り上げる"}
+          {gradeAdvancing ? "処理中..." : gradeAdvanced !== null ? `✓ ${gradeAdvanced}人を更新しました` : "学年を一括繰り上げる"}
         </button>
       ) : (
         <div style={{

@@ -6,11 +6,11 @@ export default function TrendGraph({ athleteReports }) {
   const IW = W - PL - PR, IH = H - PT - PB;
 
   const days = Array.from({ length: 14 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (13 - i));
+    const d = new Date(new Date().getTime() + 9 * 60 * 60 * 1000);
+    d.setUTCDate(d.getUTCDate() - (13 - i));
     const ds = d.toISOString().split("T")[0];
     const rep = athleteReports[ds];
-    return { label: `${d.getMonth() + 1}/${d.getDate()}`, mood: rep?.mood ?? null, body: rep?.body ?? null };
+    return { label: `${d.getUTCMonth() + 1}/${d.getUTCDate()}`, mood: rep?.mood ?? null, body: rep?.body ?? null };
   });
 
   const xOf = (i) => PL + (i / 13) * IW;

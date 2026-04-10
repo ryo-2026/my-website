@@ -1,5 +1,5 @@
 export function todayStr() {
-  return new Date().toISOString().split("T")[0];
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Tokyo" }).format(new Date());
 }
 
 export function dateLabel(dateStr) {

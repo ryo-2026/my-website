@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { doc, setDoc, collection, onSnapshot } from "firebase/firestore";
 import { db } from "../../firebase";
 import { ACCENT, BG, BORDER } from "../../constants";
@@ -7,6 +7,7 @@ import Avatar from "../shared/Avatar";
 import AthleteReportTab from "./AthleteReportTab";
 import AthleteHistoryTab from "./AthleteHistoryTab";
 import ProfileEditTab from "./ProfileEditTab";
+import PullToRefresh from "../shared/PullToRefresh";
 
 const TABS = [
   { id: "report",  label: "今日の日報",  icon: "📝" },
@@ -17,6 +18,7 @@ const TABS = [
 export default function AthleteScreen({ userProfile, onLogout, onProfileUpdate }) {
   const [tab, setTab] = useState("report");
   const [myReports, setMyReports] = useState({});
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "reports", userProfile.uid, "daily"), (snap) => {
@@ -25,7 +27,12 @@ export default function AthleteScreen({ userProfile, onLogout, onProfileUpdate }
       setMyReports(data);
     });
     return unsub;
-  }, [userProfile.uid]);
+  }, [userProfile.uid, refreshKey]);
+
+  const handleRefresh = useCallback(() => new Promise(resolve => {
+    setRefreshKey(k => k + 1);
+    setTimeout(resolve, 1000);
+  }), []);
 
   const handleSubmitReport = async (data) => {
     await setDoc(doc(db, "reports", userProfile.uid, "daily", todayStr()), {
@@ -36,6 +43,7 @@ export default function AthleteScreen({ userProfile, onLogout, onProfileUpdate }
 
   return (
     <div style={{ minHeight: "100vh", background: BG, color: "#fff" }}>
+      <PullToRefresh onRefresh={handleRefresh}>
       <div style={{
         position: "sticky", top: 0, zIndex: 100,
         background: BG, borderBottom: "1px solid " + BORDER,
@@ -83,6 +91,7 @@ export default function AthleteScreen({ userProfile, onLogout, onProfileUpdate }
       {tab === "report"  && <AthleteReportTab todayReport={myReports[todayStr()]} onSubmit={handleSubmitReport} />}
       {tab === "history" && <AthleteHistoryTab athleteReports={myReports} />}
       {tab === "profile" && <ProfileEditTab userProfile={userProfile} onProfileUpdate={onProfileUpdate} />}
+      </PullToRefresh>
     </div>
   );
 }

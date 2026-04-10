@@ -23,6 +23,10 @@
     #root { min-height: 100%; }
     input, textarea, button { font-family: inherit; }
     textarea { -webkit-appearance: none; }
+    body { overscroll-behavior-y: none; }
+    @keyframes ptr-spin {
+      to { transform: rotate(360deg); }
+    }
 
     /* PWA Install Banner */
     #pwa-banner {

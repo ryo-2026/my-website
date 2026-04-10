@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { collection, query, where, onSnapshot, getDocs } from "firebase/firestore";
 import { db } from "../../firebase";
 import { ACCENT, BG, BORDER } from "../../constants";
@@ -6,11 +6,13 @@ import { todayStr } from "../../utils";
 import CoachAthletesTab from "./CoachAthletesTab";
 import CoachAlertsTab from "./CoachAlertsTab";
 import CoachSettingsTab from "./CoachSettingsTab";
+import PullToRefresh from "../shared/PullToRefresh";
 
 export default function CoachScreen({ userProfile, onLogout }) {
   const [tab, setTab] = useState("athletes");
   const [athletes, setAthletes] = useState([]);
   const [allReports, setAllReports] = useState({});
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const q = query(collection(db, "users"), where("role", "==", "athlete"));
@@ -26,7 +28,12 @@ export default function CoachScreen({ userProfile, onLogout }) {
       setAllReports(reportsObj);
     });
     return unsub;
-  }, []);
+  }, [refreshKey]);
+
+  const handleRefresh = useCallback(() => new Promise(resolve => {
+    setRefreshKey(k => k + 1);
+    setTimeout(resolve, 1000);
+  }), []);
 
   const alertCount = athletes.filter(a => {
     const r = allReports[a.uid]?.[todayStr()];
@@ -43,6 +50,7 @@ export default function CoachScreen({ userProfile, onLogout }) {
 
   return (
     <div style={{ minHeight: "100vh", background: BG, color: "#fff" }}>
+      <PullToRefresh onRefresh={handleRefresh}>
       <div style={{
         position: "sticky", top: 0, zIndex: 100,
         background: BG, borderBottom: "1px solid " + BORDER,
@@ -90,6 +98,7 @@ export default function CoachScreen({ userProfile, onLogout }) {
       {tab === "athletes" && <CoachAthletesTab athletes={athletes} allReports={allReports} />}
       {tab === "alerts"   && <CoachAlertsTab athletes={athletes} allReports={allReports} />}
       {tab === "settings" && <CoachSettingsTab userProfile={userProfile} />}
+      </PullToRefresh>
     </div>
   );
 }

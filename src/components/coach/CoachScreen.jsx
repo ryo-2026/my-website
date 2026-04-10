@@ -6,6 +6,7 @@ import { todayStr } from "../../utils";
 import CoachAthletesTab from "./CoachAthletesTab";
 import CoachAlertsTab from "./CoachAlertsTab";
 import CoachSettingsTab from "./CoachSettingsTab";
+import CoachManageTab from "./CoachManageTab";
 import PullToRefresh from "../shared/PullToRefresh";
 
 export default function CoachScreen({ userProfile, onLogout }) {
@@ -42,9 +43,12 @@ export default function CoachScreen({ userProfile, onLogout }) {
   const noReportCount = athletes.filter(a => !allReports[a.uid]?.[todayStr()]).length;
   const badgeCount = alertCount + noReportCount;
 
+  const isMaster = userProfile.role === "master";
+
   const TABS = [
     { id: "athletes", label: "選手一覧",   icon: "👥" },
     { id: "alerts",   label: "要チェック", icon: "🚨", badge: badgeCount },
+    ...(isMaster ? [{ id: "manage", label: "管理", icon: "👑" }] : []),
     { id: "settings", label: "設定",       icon: "⚙️" },
   ];
 
@@ -97,6 +101,7 @@ export default function CoachScreen({ userProfile, onLogout }) {
 
       {tab === "athletes" && <CoachAthletesTab athletes={athletes} allReports={allReports} />}
       {tab === "alerts"   && <CoachAlertsTab athletes={athletes} allReports={allReports} />}
+      {tab === "manage"   && <CoachManageTab userProfile={userProfile} />}
       {tab === "settings" && <CoachSettingsTab userProfile={userProfile} />}
       </PullToRefresh>
     </div>

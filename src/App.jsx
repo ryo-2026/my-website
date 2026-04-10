@@ -74,6 +74,6 @@ export default function App() {
 
   if (pendingFirebaseUser) return <PinEntryScreen firebaseUser={pendingFirebaseUser} onSuccess={handlePinSuccess} />;
   if (!userProfile) return <LoginScreen />;
-  if (userProfile.role === "coach") return <CoachScreen userProfile={userProfile} onLogout={handleLogout} />;
+  if (userProfile.role === "coach" || userProfile.role === "master") return <CoachScreen userProfile={userProfile} onLogout={handleLogout} />;
   return <AthleteScreen userProfile={userProfile} onLogout={handleLogout} onProfileUpdate={handleProfileUpdate} />;
 }

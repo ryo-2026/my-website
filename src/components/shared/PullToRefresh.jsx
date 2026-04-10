@@ -21,15 +21,18 @@ export default function PullToRefresh({ onRefresh, children }) {
     const onTouchMove = (e) => {
       if (!s.pulling) return;
       const deltaY = e.touches[0].clientY - s.startY;
-      if (deltaY > 0) {
+      if (deltaY > 15) {
+        // 15px超えて初めてPTR操作と確定し、ブラウザスクロールを抑制
         e.preventDefault();
-        s.pullY = Math.min(deltaY * 0.45, THRESHOLD + 24);
+        s.pullY = Math.min((deltaY - 15) * 0.5, THRESHOLD + 24);
         setPullY(s.pullY);
-      } else {
+      } else if (deltaY <= 0) {
+        // 上方向スクロールならPTRをキャンセルして通常スクロールに委ねる
         s.pulling = false;
         s.pullY = 0;
         setPullY(0);
       }
+      // 0〜15px の範囲は様子見（どちらにも確定していない）
     };
 
     const onTouchEnd = async () => {

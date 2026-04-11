@@ -18,25 +18,26 @@
 - 今日の日報入力（トレーニング内容・メンタル・体調・気になること・コーチへのメッセージ）
 - 過去の日報履歴の閲覧
 - 14日間のメンタル／体調トレンドグラフ表示
+- プロフィール編集（ロック機能付き）
 
 ### コーチ向け
-- 全選手の本日の日報状況を一覧表示
+- 全選手の本日の日報状況を一覧表示・絞り込み
 - メンタル・体調が低下している選手のアラート通知
 - 本日未提出の選手を一覧表示
 - 選手ごとの詳細履歴・トレンドグラフ閲覧
+- チームPIN管理・学年一括進級
+
+### マスター向け（管理者）
+- ユーザーのロール管理（選手 / コーチ / マスター）
+- メンバーの追加・削除
 
 ---
 
-## デモアカウント
+## 認証フロー
 
-ログイン画面の「DEMO QUICK LOGIN」からワンタップでログインできます。
-
-| ユーザーID | パスワード | ロール | 名前 |
-|---|---|---|---|
-| coach1 | coach123 | コーチ | 鈴木 コーチ |
-| a1 | pass1 | 選手 | 田中 翼（陸上） |
-| a2 | pass2 | 選手 | 山本 海斗（水泳） |
-| a3 | pass3 | 選手 | 佐藤 凛（体操） |
+1. Googleアカウントでログイン
+2. 新規選手はチームPINを入力して登録完了
+3. コーチ・マスターはFirestoreで権限付与
 
 ---
 
@@ -47,7 +48,8 @@
 | フロントエンド | React 18 |
 | ビルドツール | Vite 5 |
 | スタイリング | CSS-in-JS（インラインスタイル） |
-| データ保存 | localStorage |
+| 認証 | Firebase Authentication（Google）|
+| データベース | Cloud Firestore |
 | PWA | Web App Manifest / Service Worker |
 | ホスティング | GitHub Pages |
 | CI/CD | GitHub Actions |
@@ -58,6 +60,7 @@
 
 ### 必要なもの
 - Node.js 20 以上
+- Firebase プロジェクト（[Firebase Console](https://console.firebase.google.com/)）
 
 ### 手順
 
@@ -68,8 +71,30 @@ cd my-website
 
 # 依存関係をインストール
 npm install
+```
 
-# 開発サーバーを起動
+### 環境変数の設定
+
+`.env.example` をコピーして `.env.local` を作成し、Firebase の認証情報を入力します。
+
+```bash
+cp .env.example .env.local
+```
+
+`.env.local` を編集：
+
+```
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+```
+
+### 開発サーバーの起動
+
+```bash
 npm run dev
 ```
 
@@ -88,6 +113,21 @@ npm run preview
 ---
 
 ## デプロイ
+
+### GitHub Secrets の設定
+
+リポジトリの **Settings → Secrets and variables → Actions** に以下のシークレットを登録してください。
+
+| シークレット名 | 内容 |
+|---|---|
+| `VITE_FIREBASE_API_KEY` | Firebase API キー |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase Auth ドメイン |
+| `VITE_FIREBASE_PROJECT_ID` | Firebase プロジェクト ID |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Firebase Storage バケット |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase Sender ID |
+| `VITE_FIREBASE_APP_ID` | Firebase App ID |
+
+### 自動デプロイ
 
 `main` ブランチに push すると GitHub Actions が自動でビルド＆デプロイします。
 

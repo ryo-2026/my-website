@@ -1,6 +1,6 @@
 # Athlete Management
 
-アスリートのトレーニング日報管理・コーチダッシュボードPWAアプリ
+選手とコーチをつなぐ、トレーニング日報管理PWAアプリ
 
 **公開URL:** https://ryo-2026.github.io/my-website/
 
@@ -8,36 +8,28 @@
 
 ## 概要
 
-選手が毎日のトレーニング内容・メンタル・体調を記録し、コーチがリアルタイムで状態を把握できるフィットネス管理アプリです。スマートフォンのホーム画面にインストールして使用できるPWA（Progressive Web App）として動作します。
+選手が毎日のトレーニング内容・メンタル・体調を記録し、コーチがリアルタイムで状態を把握できるチーム管理アプリです。スマートフォンのホーム画面にインストールして使えるPWA（Progressive Web App）として動作し、ネイティブアプリに近い体験を提供します。
 
 ---
 
-## 機能
+## 主な機能
 
 ### 選手向け
 - 今日の日報入力（トレーニング内容・メンタル・体調・気になること・コーチへのメッセージ）
 - 過去の日報履歴の閲覧
-- 14日間のメンタル／体調トレンドグラフ表示
-- プロフィール編集（ロック機能付き）
+- 14日間のメンタル／体調トレンドグラフ（SVGで自前実装）
+- プロフィール編集（ロック機能・変更申請フロー付き）
 
 ### コーチ向け
 - 全選手の本日の日報状況を一覧表示・絞り込み
-- メンタル・体調が低下している選手のアラート通知
+- メンタル・体調スコアが低下している選手のアラート通知
 - 本日未提出の選手を一覧表示
 - 選手ごとの詳細履歴・トレンドグラフ閲覧
-- チームPIN管理・学年一括進級
+- チームPIN管理・学年一括繰り上げ
 
-### マスター向け（管理者）
-- ユーザーのロール管理（選手 / コーチ / マスター）
-- メンバーの追加・削除
-
----
-
-## 認証フロー
-
-1. Googleアカウントでログイン
-2. 新規選手はチームPINを入力して登録完了
-3. コーチ・マスターはFirestoreで権限付与
+### マスター（管理者）向け
+- ユーザーロール管理（選手 / コーチ / マスター）
+- メンバーの追加・除名・コーチ任命／解任
 
 ---
 
@@ -48,11 +40,53 @@
 | フロントエンド | React 18 |
 | ビルドツール | Vite 5 |
 | スタイリング | CSS-in-JS（インラインスタイル） |
-| 認証 | Firebase Authentication（Google）|
-| データベース | Cloud Firestore |
+| 認証 | Firebase Authentication（Googleログイン）|
+| データベース | Cloud Firestore（リアルタイム同期）|
+| セキュリティ | Web Crypto API（SHA-256 + ソルトによるPINハッシュ化）|
 | PWA | Web App Manifest / Service Worker |
 | ホスティング | GitHub Pages |
 | CI/CD | GitHub Actions |
+
+---
+
+## 設計上のポイント
+
+### リアルタイム同期
+Firestoreの `onSnapshot` を使い、選手の日報提出・プロフィール更新がコーチ画面へ即座に反映されます。コーチ画面では全選手のデータを `Promise.all` で並列取得することでパフォーマンスを確保しています。
+
+### ロールベースのアクセス制御
+`athlete` / `coach` / `master` の3段階ロールをFirestoreのユーザードキュメントで管理し、Reactのルーティング層でロールに応じた画面を出し分けています。新規ユーザーはチームPINを入力することで選手として登録されます。
+
+### PINのセキュアな保存
+チーム参加PINは平文でなく、ブラウザ標準の **Web Crypto API**（`crypto.subtle`）を用いてSHA-256＋ランダムソルトでハッシュ化した上でFirestoreに保存しています。
+
+```js
+// src/utils/pinHash.js
+export async function hashPin(pin, salt) {
+  const data = new TextEncoder().encode(salt + pin);
+  const buf  = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(buf))
+    .map(b => b.toString(16).padStart(2, "0")).join("");
+}
+```
+
+### プルトゥリフレッシュ（カスタム実装）
+ネイティブアプリ的な操作感を実現するため、`touchstart` / `touchmove` / `touchend` イベントをゼロから実装。引っ張り量に応じたスピナーのアニメーションとスクロール干渉の制御を行っています。
+
+### SVGトレンドグラフ
+外部グラフライブラリを使わず、SVGを直接描画する `TrendGraph` コンポーネントを実装。14日分のメンタル・体調スコアを折れ線グラフで可視化しています。
+
+---
+
+## 認証フロー
+
+```
+Googleログイン
+  └─ Firestoreにユーザー情報あり → ロールに応じた画面へ
+  └─ 情報なし（新規）          → チームPIN入力 → 選手として登録
+```
+
+コーチ・マスターはFirestoreで直接ロールを付与します。
 
 ---
 
@@ -132,9 +166,7 @@ npm run preview
 `main` ブランチに push すると GitHub Actions が自動でビルド＆デプロイします。
 
 ```bash
-git add .
-git commit -m "変更内容"
-git push
+git push origin main
 ```
 
 数分後に https://ryo-2026.github.io/my-website/ へ反映されます。

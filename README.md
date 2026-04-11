@@ -58,17 +58,7 @@ Firestoreの `onSnapshot` を使い、選手の日報提出・プロフィール
 `athlete` / `coach` / `master` の3段階ロールをFirestoreのユーザードキュメントで管理し、Reactのルーティング層でロールに応じた画面を出し分けています。新規ユーザーはチームPINを入力することで選手として登録されます。
 
 ### PINのセキュアな保存
-チーム参加PINは平文でなく、ブラウザ標準の **Web Crypto API**（`crypto.subtle`）を用いてSHA-256＋ランダムソルトでハッシュ化した上でFirestoreに保存しています。
-
-```js
-// src/utils/pinHash.js
-export async function hashPin(pin, salt) {
-  const data = new TextEncoder().encode(salt + pin);
-  const buf  = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(buf))
-    .map(b => b.toString(16).padStart(2, "0")).join("");
-}
-```
+チーム参加PINは平文でなく、ブラウザ標準の **Web Crypto API**（`crypto.subtle`）を用いてSHA-256＋ランダムソルトでハッシュ化した上でFirestoreに保存しています。平文PINはいかなるタイミングでも保存されません。
 
 ### プルトゥリフレッシュ（カスタム実装）
 ネイティブアプリ的な操作感を実現するため、`touchstart` / `touchmove` / `touchend` イベントをゼロから実装。引っ張り量に応じたスピナーのアニメーションとスクロール干渉の制御を行っています。
